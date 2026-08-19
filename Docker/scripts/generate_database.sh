@@ -7,9 +7,16 @@ if [ "$DOCKER_ENV" != "true" ]; then
 fi
 
 if [[ "$DATABASE_PROVIDER" == "postgresql" || "$DATABASE_PROVIDER" == "mysql" || "$DATABASE_PROVIDER" == "psql_bouncer" ]]; then
-    export DATABASE_URL
+    # Prisma 7 (prisma.config.ts) reads DATABASE_CONNECTION_URI.
+    # Orchestrators like Easypanel often inject DATABASE_URL when linking Postgres.
+    if [ -z "$DATABASE_CONNECTION_URI" ] && [ -n "$DATABASE_URL" ]; then
+        export DATABASE_CONNECTION_URI="$DATABASE_URL"
+    fi
+    if [ -z "$DATABASE_URL" ] && [ -n "$DATABASE_CONNECTION_URI" ]; then
+        export DATABASE_URL="$DATABASE_CONNECTION_URI"
+    fi
     echo "Generating database for $DATABASE_PROVIDER"
-    echo "Database URL: $DATABASE_URL"
+    echo "Database URL: ${DATABASE_CONNECTION_URI:-$DATABASE_URL}"
     npm run db:generate
     if [ $? -ne 0 ]; then
         echo "Prisma generate failed"
