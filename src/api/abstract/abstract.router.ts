@@ -46,12 +46,24 @@ export abstract class RouterBroker {
     const body = request.body;
     const instance = request.params as unknown as InstanceDto;
 
+    // Identity in the URL path is the source of truth (auth already bound to it).
+    // Routes without :instanceName (fetchInstances, create) legitimately receive
+    // instanceName/instanceId from query or body — stripping them sent the Manager
+    // to the first instance in the list.
+    const hasPathInstanceName = typeof instance.instanceName === 'string' && instance.instanceName.length > 0;
+
     if (request?.query && Object.keys(request.query).length > 0) {
-      Object.assign(instance, sanitizeUntrustedInput(request.query as Record<string, any>));
+      const query = request.query as Record<string, any>;
+      Object.assign(instance, hasPathInstanceName ? sanitizeUntrustedInput(query) : query);
     }
 
     if (request.originalUrl.includes('/instance/create')) {
-      Object.assign(instance, sanitizeUntrustedInput(body));
+      const createBody = { ...(body as Record<string, any>) };
+      if (createBody.instanceId !== undefined) {
+        logger.warn('Ignoring attempt to override protected field "instanceId" via untrusted input');
+        delete createBody.instanceId;
+      }
+      Object.assign(instance, createBody);
     }
 
     Object.assign(ref, body);
