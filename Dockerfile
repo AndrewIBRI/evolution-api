@@ -22,7 +22,14 @@ COPY ./src ./src
 COPY ./public ./public
 COPY ./prisma ./prisma
 COPY ./manager ./manager
-COPY ./.env.example ./.env
+# Do not bake .env.example into the image — runtime config must come from the
+# orchestrator (Easypanel, Docker, K8s). Dummy values below are only so
+# `prisma generate` can resolve DATABASE_PROVIDER / DATABASE_CONNECTION_URI.
+# COPY ./.env.example ./.env
+ARG DATABASE_PROVIDER=postgresql
+ENV DATABASE_PROVIDER=${DATABASE_PROVIDER}
+ENV DATABASE_CONNECTION_URI=postgresql://user:pass@localhost:5432/evolution_db?schema=evolution_api
+ENV DOCKER_ENV=true
 COPY ./runWithProvider.js ./
 
 COPY ./Docker ./Docker
@@ -61,7 +68,8 @@ COPY --from=builder /evolution/dist ./dist
 COPY --from=builder /evolution/prisma ./prisma
 COPY --from=builder /evolution/manager ./manager
 COPY --from=builder /evolution/public ./public
-COPY --from=builder /evolution/.env ./.env
+# Do not copy a baked .env — Prisma/dotenv would prefer it over injected env vars.
+# COPY --from=builder /evolution/.env ./.env
 COPY --from=builder /evolution/Docker ./Docker
 COPY --from=builder /evolution/runWithProvider.js ./runWithProvider.js
 COPY --from=builder /evolution/tsup.config.ts ./tsup.config.ts
