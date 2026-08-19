@@ -2,8 +2,12 @@
 
 source ./Docker/scripts/env_functions.sh
 
-if [ "$DOCKER_ENV" != "true" ]; then
+# After merge_env.js the file has example defaults plus injected overlays.
+if [ -f .env ]; then
     export_env_vars
+elif [ "$DOCKER_ENV" != "true" ]; then
+    echo ".env file not found"
+    exit 1
 fi
 
 if [[ "$DATABASE_PROVIDER" == "postgresql" || "$DATABASE_PROVIDER" == "mysql" || "$DATABASE_PROVIDER" == "psql_bouncer" ]]; then

@@ -1,7 +1,7 @@
 FROM node:24-alpine AS builder
 
 RUN apk update && \
-    apk add --no-cache git ffmpeg wget curl bash openssl
+    apk add --no-cache git ffmpeg wget curl bash openssl dos2unix
 
 LABEL version="2.3.1" description="Api to control whatsapp features through http requests." 
 LABEL maintainer="Davidson Gomes" git="https://github.com/DavidsonGomes"
@@ -23,10 +23,9 @@ COPY ./src ./src
 COPY ./public ./public
 COPY ./prisma ./prisma
 COPY ./manager ./manager
-# Do not bake .env.example into the image — runtime config must come from the
-# orchestrator (Easypanel, Docker, K8s). Dummy values below are only so
-# `prisma generate` can resolve DATABASE_PROVIDER / DATABASE_CONNECTION_URI.
-# COPY ./.env.example ./.env
+COPY ./.env.example ./.env.example
+# Dummy values are only for `prisma generate` at build time. The real .env is
+# assembled at container start from .env.example + injected environment vars.
 ARG DATABASE_PROVIDER=postgresql
 ENV DATABASE_PROVIDER=${DATABASE_PROVIDER}
 ENV DATABASE_CONNECTION_URI=postgresql://user:pass@localhost:5432/evolution_db?schema=evolution_api
@@ -69,8 +68,7 @@ COPY --from=builder /evolution/dist ./dist
 COPY --from=builder /evolution/prisma ./prisma
 COPY --from=builder /evolution/manager ./manager
 COPY --from=builder /evolution/public ./public
-# Do not copy a baked .env — Prisma/dotenv would prefer it over injected env vars.
-# COPY --from=builder /evolution/.env ./.env
+COPY --from=builder /evolution/.env.example ./.env.example
 COPY --from=builder /evolution/Docker ./Docker
 COPY --from=builder /evolution/runWithProvider.js ./runWithProvider.js
 COPY --from=builder /evolution/tsup.config.ts ./tsup.config.ts
@@ -80,4 +78,4 @@ ENV DOCKER_ENV=true
 
 EXPOSE 8080
 
-ENTRYPOINT ["/bin/bash", "-c", ". ./Docker/scripts/deploy_database.sh && npm run start:prod" ]
+ENTRYPOINT ["/bin/bash", "./Docker/scripts/entrypoint.sh"]
