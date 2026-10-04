@@ -763,6 +763,10 @@ export class BusinessStartupService extends ChannelStartupService {
           };
         }
 
+        if (message.referral) {
+          messageRaw.referral = message.referral;
+        }
+
         if (this.localSettings.readMessages) {
           // await this.client.readMessages([received.key]);
         }
